@@ -53,12 +53,12 @@ import org.codehaus.plexus.component.repository.exception.ComponentLookupExcepti
 import org.apache.maven.archetype.catalog.Archetype;
 import org.apache.maven.archetype.common.ArchetypeArtifactManager;
 import org.apache.maven.archetype.exception.UnknownArchetype;
-import org.apache.maven.archetype.metadata.ArchetypeDescriptor;
 import org.apache.maven.archetype.metadata.RequiredProperty;
 import org.apache.maven.archetype.source.ArchetypeDataSource;
 import org.apache.maven.archetype.source.ArchetypeDataSourceException;
-import org.apache.maven.artifact.repository.ArtifactRepository;
-import org.apache.maven.project.ProjectBuildingRequest;
+import org.apache.maven.RepositoryUtils;
+
+import org.eclipse.aether.repository.RemoteRepository;
 
 import org.eclipse.m2e.core.embedder.IMaven;
 import org.eclipse.m2e.core.internal.MavenPluginActivator;
@@ -140,7 +140,7 @@ public class ArchetypePlugin {
 
   public LocalCatalogFactory newLocalCatalogFactory(String path, String description, boolean editable,
       boolean enabled) {
-    return new LocalCatalogFactory(path, description, editable, enabled, maven, archetypeDataSourceMap.get("catalog"));
+    return new LocalCatalogFactory(path, description, editable, enabled);
   }
 
   public RemoteCatalogFactory newRemoteCatalogFactory(String url, String description, boolean editable,
@@ -219,20 +219,17 @@ public class ArchetypePlugin {
     final String artifactId = archetype.getArtifactId();
     final String version = archetype.getVersion();
 
-    final List<ArtifactRepository> repositories = new ArrayList<>(maven.getArtifactRepositories());
+    final List<RemoteRepository> repositories = RepositoryUtils.toRepos(maven.getArtifactRepositories());
 
     return maven.createExecutionContext().execute((context, monitor1) -> {
-      ArtifactRepository localRepository = context.getLocalRepository();
-      if(archetypeArtifactManager.isFileSetArchetype(groupId, artifactId, version, null, localRepository, repositories,
-          context.newProjectBuildingRequest())) {
-        ArchetypeDescriptor descriptor;
-        try {
-          descriptor = archetypeArtifactManager.getFileSetArchetypeDescriptor(groupId, artifactId, version, null,
-              localRepository, repositories, context.newProjectBuildingRequest());
-        } catch(UnknownArchetype ex) {
-          throw new CoreException(Status.error("UnknownArchetype", ex));
+      try {
+        File archetypeFile = archetypeArtifactManager.getArchetypeFile(groupId, artifactId, version, repositories,
+            context.getRepositorySession());
+        if(archetypeArtifactManager.isFileSetArchetype(archetypeFile)) {
+          return archetypeArtifactManager.getFileSetArchetypeDescriptor(archetypeFile).getRequiredProperties();
         }
-        return descriptor.getRequiredProperties();
+      } catch(UnknownArchetype ex) {
+        throw new CoreException(Status.error("UnknownArchetype", ex));
       }
       return null;
     }, monitor);
@@ -240,11 +237,10 @@ public class ArchetypePlugin {
 
   public void updateLocalCatalog(Archetype archetype) throws CoreException {
     maven.createExecutionContext().execute((ctx, m) -> {
-      ProjectBuildingRequest request = ctx.newProjectBuildingRequest();
       try {
         ArchetypeDataSource source = archetypeDataSourceMap.get("catalog");
 
-        source.updateCatalog(request, archetype);
+        source.updateCatalog(ctx.getRepositorySession(), archetype);
       } catch(ArchetypeDataSourceException e) {
       }
       return null;
