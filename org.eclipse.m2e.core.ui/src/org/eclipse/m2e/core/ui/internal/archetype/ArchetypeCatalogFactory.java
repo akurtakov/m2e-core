@@ -15,8 +15,10 @@ package org.eclipse.m2e.core.ui.internal.archetype;
 
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -165,10 +167,11 @@ public abstract class ArchetypeCatalogFactory {
         Path path;
         try {
           path = Path.of(getId());
-        } catch(Exception e1) {
+        } catch(InvalidPathException e1) {
           try {
             path = Path.of(new URI(getId()));
-          } catch(Exception e2) {
+          } catch(URISyntaxException | InvalidPathException e2) {
+            log.debug("Could not parse catalog path: {}", getId(), e2);
             return new ArchetypeCatalog();
           }
         }

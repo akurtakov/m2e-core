@@ -180,7 +180,7 @@ version:               ${version_cleanup;${mvnVersion}}
 Bundle-SymbolicName:   org.eclipse.m2e.archetype.${replacestring;${mvnArtifactId};archetype-}
 Bundle-Version:        ${version}.2
 Bundle-Vendor: 	       Eclipse.org - m2e
-Fragment-Host:         org.eclipse.m2e.archetype.common;bundle-version="${range;[===,+);3.4.1}"
+Fragment-Host:         org.eclipse.m2e.archetype.common;bundle-version="${range;[===,+);${version}}"
 Export-Package:        org.apache.maven.*;-noimport:=true;provider=m2e;mandatory:=provider;version="${version}";x-friends:="org.eclipse.m2e.core.ui"
 Import-Package:        !*
 ]]></instructions>
